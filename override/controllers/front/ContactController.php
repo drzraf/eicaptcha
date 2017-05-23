@@ -7,6 +7,8 @@ class ContactController extends ContactControllerCore {
   }
 
   public function initCursedPage() {
+    parent::setMedia();
+
     if (!empty($this->redirect_after)) {
       parent::redirect();
     }
