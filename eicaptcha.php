@@ -54,8 +54,8 @@ class EiCaptcha extends Module
 
     public function install()
     {
-        if (!parent::install() || !$this->registerHook('header') || !$this->registerHook('displayCustomerAccountForm') || !Configuration::updateValue('CAPTCHA_ENABLE_ACCOUNT', 0)
-            || !Configuration::updateValue('CAPTCHA_ENABLE_CONTACT', 0) || !Configuration::updateValue('CAPTCHA_THEME', 0)
+        if (!parent::install() || !$this->registerHook('header') || !$this->registerHook('displayCustomerAccountForm') || $this->registerHook('contactFormAccess') ||
+            !Configuration::updateValue('CAPTCHA_ENABLE_ACCOUNT', 0) || !Configuration::updateValue('CAPTCHA_ENABLE_CONTACT', 0) || !Configuration::updateValue('CAPTCHA_THEME', 0)
         ) {
             return false;
         }
@@ -365,5 +365,30 @@ class EiCaptcha extends Module
         $js .= '<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit&hl='.Configuration::get('CAPTCHA_FORCE_LANG').'" async defer></script>';
 
         return $js;
+    }
+
+    /* return true|false : whether to allow access (before postProcess()) */
+    public function hookContactFormAccess() {
+        if (! Tools::isSubmit('submitMessage')) {
+            // postProcess will take care of this
+            return 1;
+        }
+
+        // no restriction
+        if (! Configuration::get('CAPTCHA_ENABLE_CONTACT', 0)) {
+            return 1;
+        }
+
+        require_once(__DIR__ . '/vendor/autoload.php');
+        $captcha = new \ReCaptcha\ReCaptcha(Configuration::get('CAPTCHA_PRIVATE_KEY'));
+        $result = $captcha->verify(Tools::getValue('g-recaptcha-response'),
+                                   Tools::getRemoteAddr());
+
+        if (! $result->isSuccess()) {
+            $this->errors[] = Tools::displayError('incorrect response to CAPTCHA challenge. Please try again.');
+            return 0;
+        }
+
+        return 1;
     }
 }
